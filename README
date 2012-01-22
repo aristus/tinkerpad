@@ -1,0 +1,3 @@
+In chapter 6 of Lauren Ipsum, N. Veterate Tinker teaches our hero how to use a mechanical turtle to draw figures. She learns a simplified version of the programming language LOGO. 
+
+TinkerPad is a simple metacircular interpreter for LOGO in Javascript. It uses the RaphaelJS library for drawing.

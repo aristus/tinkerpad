@@ -1,0 +1,92 @@
+<html>
+  <head>
+    <title>TinkerPad</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+#repl {
+  padding: 1em;
+  width: 180px;
+  height: 550px;
+}
+
+#holder {
+  width: 500px;
+  height: 550px;
+  background-color: #fff;
+  border: solid 1px #888;
+}
+
+#popshare {
+  position: absolute;
+  width: 320px;
+  height: 150px;
+  top: 100px;
+  left: 300px;
+  background: #ffffcc;
+  border: solid 1px #999966;
+  box-shadow: #222 0px 3px 14px;
+  -webkit-box-shadow: #222 0px 3px 14px;
+  border-radius: 6px;
+  padding: 1em;
+  display: none;
+}
+
+#url {
+  width: 300px;
+}
+
+#closer {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+
+.right {
+  height: 600px;
+  width: 600px;
+  background-color: #ffffcc;
+}
+</style>
+
+  </head>
+  <body>
+
+<h2>TinkerPad</h2>
+<p>
+In <a href="http://www.laurenipsum.org/tinker">chapter 6 of Lauren Ipsum</a>, N. Veterate Tinker teaches our hero how to use a mechanical turtle to draw figures. She learns a simplified version of the programming language <a href="http://en.wikipedia.org/wiki/Logo_(programming_language)">Logo</a>. Type commands into the window on the left, and click GO. Enjoy!
+</p>
+
+<form action="/tinkerpad/save" method="post" target="saver">
+  <table width="100%">
+    <tr>
+      <td>
+        <input type="button" onclick="go()" id="run" value=" GO! " />
+        <input type="button" onclick="Tinker.reset()" id="" value="Reset" /><br/>
+        <textarea id="repl" name="body">DEFINE LINE length
+MOVE 12
+REPEAT length
+
+DEFINE SQUARE
+LINE 5
+TURN RIGHT 90
+REPEAT 4
+
+DEFINE FLOWER
+SQUARE
+MOVE 10
+TURN RIGHT 13
+REPEAT 20
+
+FLOWER</textarea>
+      </td>
+      <td>
+        <div id="holder"></div>
+      </td>
+  </table>
+</form>
+
+<script src="raphael2-min.js"></script>
+<script src="tinker.js"></script>
+
+  </body>
+</html>
