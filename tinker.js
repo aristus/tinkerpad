@@ -52,7 +52,10 @@
 
     // turtle's initial state
     Tinker = {
+        '_speed': 200, //pixels per second
+        'evalpos': 0,
         'heading': 0,
+        '_color':'black',
         'rad': 0,
         'x': initial.x,
         'y': initial.y,
@@ -140,6 +143,7 @@
         for (var i=0; i<p.length; i++) {
             Tinker._eval(p[i], {}, true)
         }
+        Tinker.animate()
     }
 
     Tinker._define = function() {
@@ -176,7 +180,7 @@
         var delta = (deg * plusminus)
         Tinker.heading = (Tinker.heading + delta) % 360
         Tinker.rad = Tinker.heading * (Math.PI/180)
-        Tinker.redraw()
+        Tinker.makeop('turn')
     }
 
     // Given a heading and x,y coords, calculate the x,y coords
@@ -188,7 +192,7 @@
         Tinker.lasty = Tinker.y
         Tinker.x += Math.cos(Tinker.rad) * distance
         Tinker.y += Math.sin(Tinker.rad) * distance
-        Tinker.redraw(true)
+        Tinker.makeop('move')
     }
 
     Tinker.penup = function() {
@@ -206,35 +210,106 @@
         Tinker.init()
     }
 
+
     // Override these
-    Tinker.redraw = function() {}
+    Tinker.makeop = function() {}
     Tinker.dot = function() {}
     Tinker.init = function() {}
+    Tinker.animate = function() {}
+
+    // The "instruction stack"
+    svg = [['M'+[initial.x,initial.y]]]
 
     // Implement the visuals. This is separate from the core parser & state.
-    // An alternative might be to compile a Tinker program to a set of SVG paths
-    // and simply animateAlong. That's an interesting idea.
     Raphael(function () {
-        var r = Raphael("holder")
+        r = Raphael("holder")
 
         Tinker.init = function() {
             r.clear()
-            x = r.image("turtle-64.png", Tinker.x-16, Tinker.y-16, 32, 32)
+            var x = Tinker.x, y = Tinker.y
+            svg = [['M'+[x,y]]]
+            //x = r.image("/img/turtle-32.png", Tinker.x-16, Tinker.y-16, 32, 32)
+            //x = r.ellipse(Tinker.x, Tinker.y, 8, 5).attr({'fill':'#090', 'stroke':'black'})
+            turtle = r.path('M'+(x-9)+','+(y-7)+'L'+(x+9)+','+(y)+'L'+(x-9)+','+(y+7)+'z')
+                .attr({'fill':'#090', 'stroke':'#fff', 'stroke-width':2})
         }
 
-        Tinker.redraw = function(move) {
-            var xy = [Math.round(Tinker.x-initial.x),Math.round(Tinker.y-initial.y)]
-            var t = 'T'+xy+'R'+Tinker.heading
-            x.transform(t)
-            if (Tinker.pen && move) {
-                xy = [Math.round(Tinker.x),Math.round(Tinker.y)]
-                var lxy = [Math.round(Tinker.lastx),Math.round(Tinker.lasty)]
-                r.path('M'+lxy+'L'+xy).toBack()
+        // Closes the previous path, adds the given closure as an op, then opens a new path op.
+        function newop(fn) {
+            svg.push(fn)
+            var xy = [Math.round(Tinker.x),Math.round(Tinker.y)]
+            svg.push(['M'+xy])
+        }
+
+        // These look redundant but are necessary for the animation hack. The pen state
+        // has to be toggled in the proper order while the instructions in svg are execed.
+        Tinker.penup = function() {
+            newop(function(){Tinker.pen=false})
+        }
+
+        Tinker.pendown = function() {
+            newop(function(){Tinker.pen=true})
+        }
+
+        Tinker.color = function(c) {
+            newop(function(){Tinker._color=c})
+        }
+
+        Tinker.speed = function(s) {
+            newop(function(){Tinker._speed=number(s)})
+        }
+
+        Tinker.makeop = function(op) {
+            var xy = [Math.round(Tinker.x),Math.round(Tinker.y)]
+            var h = Tinker.heading
+            if (op=='move') {
+                svg[svg.length-1].push('L'+xy)
+                svg.push(['M'+xy])
+            } if (op=='turn') {
+                newop(function(){Tinker.heading=h})
             }
         }
 
         Tinker.dot = function() {
-            r.circle(Tinker.x, Tinker.y, 3).attr({fill: "#000", "stroke-width": 0}).toBack()
+            var x = Math.round(Tinker.x), y = Math.round(Tinker.y);
+            newop(function(){r.circle(x, y, 3).attr({fill:Tinker._color, "stroke-width": 0}).toBack()})
+        }
+
+        // animateAlong went away in Raphael 2.0 (boo!) But the example code contains this gem:
+        r.customAttributes.along = function (v) {
+            var point = Tinker.curPath.getPointAtLength(v * Tinker.curPathLen);
+            return {transform: "t" + [point.x-initial.x, point.y-initial.y] + 'r'+Tinker.heading}
+        };
+
+        // This is structured weirdly, but the basic idea is that we've compiled the
+        // program to a flat list of instructions. Some are SVG paths, others are
+        // simple closures. the SVG paths are animated at 200 pixels per second.
+        // The evalpos is incremented, and each animation calls Tinker.animate again,
+        // until there is no more to be done. Closures are assumed to take 0 time.
+        Tinker.animate = function() {
+            var c = svg[Tinker.evalpos]
+            Tinker.evalpos++
+            if (!c) {
+                return
+            } else if (typeof c === 'function') {
+                c()
+                Tinker.animate()
+            } else if (c.length > 1) {
+                var p = c.join('')
+                Tinker.curPath = r.path(p).attr({'stroke-width':0})
+                Tinker.curPathLen = Tinker.curPath.getTotalLength()
+                var speed = (Tinker.curPathLen/Tinker._speed)*1000
+                r.path(c[0])
+                    .attr({
+                      'stroke-width':(Tinker.pen ? 1 : 0),
+                      'stroke': Tinker._color
+                    })
+                    .animate({path:p}, speed, '', Tinker.animate)
+                turtle.attr({along: 0})
+                turtle.animate({along: 1}, speed).toFront()
+            } else {
+                Tinker.animate()
+            }
         }
 
         Tinker.init()
@@ -243,6 +318,7 @@
 
     });
 })();
+
 
 function go() {
     var program = document.getElementById('repl').value
@@ -261,3 +337,7 @@ function popshare(slug) {
     document.getElementById('url').blur()
     document.getElementById('url').select()
 }
+
+/*
+todo: pen toggle function
+*/
